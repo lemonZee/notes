@@ -241,6 +241,8 @@ public class SemaphoreDemo {
 
 
 
+## 锁
+
 ### ReadWriteLock
 
 多个线程同时读一个资源类没有任何问题，所以为了满足并发量，读取共享资源应该可以同时进行
@@ -340,4 +342,188 @@ public class ReadWriteLockDemo {
 
 
 ## ThreadPool线程池
+
+线程池的优势：
+
+线程池做的工作主要是控制运行的线程数量，处理过程中将任务放入队列，然后再线程创建后启动这些任务，如果线程数量超过了最大数量，超出数量的线程排队等候，等其他线程执行完毕，再从队列中取出任务来执行。
+
+
+
+它的主要特点为：线程复用；控制最大并发数；管理线程。
+
+
+
+### 三种线程池
+
+````java
+  ExecutorService executor =Executors.newFixedThreadPool(5);
+  ExecutorService executor2=Executors.newSingleThreadExecutor();
+  ExecutorService executor3=Executors.newCachedThreadPool();
+````
+
+
+
+#### newFixedThreadPool
+
+创建一个核心线程个数和最大线程个数都为nThreads的线程池，并且阻塞队列长度为Integer.MAX_VALUE。keepAliveTime=0说明只要线程个数比核心线程个数多并且当前空闲则回收。
+
+
+
+![1611129179424](.\images\1611129179424.png)
+
+
+
+#### newSingleThreadExecutor
+
+创建一个核心线程个数和最大线程个数都为1的线程池，并且阻塞队列长度为Integer.MAX_VALUE。keepAliveTime=0说明只要线程个数比核心线程个数多并且当前空闲则回收。
+
+![1611129215337](.\images\1611129215337.png)
+
+
+
+#### newCachedThreadPool
+
+创建一个按需创建线程的线程池，初始线程个数为0，最多线程个数为Integer.MAX_VALUE，并且阻塞队列为同步队列。keepAliveTime=60说明只要当前线程在60s内空闲则回收。
+
+这个类型的特殊之处在于，加入同步队列的任务会被马上执行，同步队列里面最多只有一个任务。
+
+
+
+![1611129255504](.\images\1611129255504.png)
+
+
+
+
+
+
+
+
+
+### 线程池的七大参数
+
+以上三种线程池的底层都是用ExecutorThreadPool来实现的，ExecutorThreadPool的构造方法如下
+
+![1611130487052](.\images\1611130487052.png)
+
+```java
+int corePoolSize
+线程池中的常驻“核心线程数”
+简称“核心数”
+```
+
+```java
+int maximumPoolSize
+线程池中能够容纳同时执行的最大线程数，此值必须大于等于1
+```
+
+```java
+long keepAliveTime
+多余的空闲线程的存货时间，当前池中线程数量超过corePoolSize时，当空闲时间达到keepAliveTime时，多余线程会被销毁直到只剩下corePoolSize个线程为止
+```
+
+```
+TimeUnit unit
+keepAliveTime的单位
+```
+
+```java
+BlockingQueue<Runnable> workQueue
+任务队列，被提交但尚未执行的任务
+```
+
+```
+ThreadFactory threadFactory
+表示生成线程池中工作线程的线程工厂，用于创建线程，一般默认的即可
+```
+
+```
+RejectedExecutionHandler handler
+拒绝策略，表示当队列满了，并且工作线程大于等于线程池的最大线程数（maximumPoolSize）时如何来拒绝请求执行的runnable的策略
+```
+
+
+
+当一个任务请求加入线程池时，如果核心线程数满了，就在阻塞队列等候，如果阻塞队列满了，查看线程池是否已达到最大线程数，如果达到最大线程数了，就按照拒绝策略处理无法执行的任务
+
+
+
+七大参数总结：
+
+1.在创建了线程池后，开始等待请求
+
+2.当调用execute（）方法添加一个请求任务时，线程池会做出如下判断：
+
+​	1.如果正在运行的线程数量小于corePoolSize，那么马上创建线程运行这个任务
+
+​	2.如果正在运行的线程数量大于或等于corePoolSize，那么将这个任务放入队列
+
+​	3.如果这个时候队列满了且正在运行的线程数量还小于maximumPoolSize，那么还是要创建非核心线程立刻运行这个任务
+
+​	4.如果队列满了且正在运行的线程数量大于或等于maximumPoolSize，那么线程池会启动饱和拒绝策略来执行。
+
+3.当一个线程完成任务时，它会从队列中取下一个任务来执行
+
+4.当一个线程无事可做超过一定的时间（keepAliveTime）时，线程会判断：
+
+​	如果当前运行的线程数大于corePoolSize，那么这个线程就被停掉。
+
+​	所以线程池的所有任务完成后，它最终会收缩到corePoolSize的大小
+
+
+
+#### 拒绝策略
+
+##### AbortPolicy(默认)
+
+直接抛出RejectedExecutionException异常组织系统正常运行
+
+
+
+##### CallerRunsPolicy
+
+“调用者运行”——一种调节机制，该策略既不会抛弃任务，也不会抛出异常，而是将某些任务**回退**到调用者，从而降低新任务的流量
+
+
+
+##### DiscardOldestPolicy
+
+抛弃队列中等待最久的任务，然后把当前任务加入队列中尝试再次提交当前任务
+
+
+
+##### DiscardPolicy
+
+该策略默默地丢弃无法处理的任务，不予任何处理也不抛出异常，如果运行任务丢失，这是最好的一种策略
+
+
+
+
+
+
+
+
+
+
+
+### 线程池用哪个？生产中如何设置合理参数？
+
+![1611660041136](.\images\1611660041136.png)
+
+
+
+**自定义示例：**
+
+```
+ExecutorService threadPool = new ThreadPoolExecutor(
+        2,
+        5,
+        2,
+        TimeUnit.SECONDS,new LinkedBlockingDeque<>(3),
+        Executors.defaultThreadFactory(),
+        new ThreadPoolExecutor.AbortPolicy());
+```
+
+![1611660692430](.\images\1611660692430.png)
+
+
 
