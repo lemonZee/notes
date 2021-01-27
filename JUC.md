@@ -26,7 +26,7 @@
 
 
 
-虽然虚假唤醒在应用实践中很少发生，但要防范于未然，做法就是不停的去测试该线程被唤醒的条件是否满足，不满足则继续等待，也就是说在一个**循环**（不可以用if）中调用wait方法进行防范。
+虽然虚假唤醒在应用实践中很少发生，但要防范于未然，做法就是不停的去测试该线程被唤醒的条件是否满足，不满足则继续等待，也就是说在一个**循环**（**不可以用if**）中调用wait方法进行防范。
 
 ````java
 synchronized (obj){
@@ -58,7 +58,7 @@ condition.signal();
 condition.signalAll();
 ````
 
-#### 
+
 
 #### lock的精准唤醒
 
@@ -473,6 +473,10 @@ RejectedExecutionHandler handler
 
 #### 拒绝策略
 
+如果达到最大线程数了，就按照拒绝策略处理无法执行的任务
+
+
+
 ##### AbortPolicy(默认)
 
 直接抛出RejectedExecutionException异常组织系统正常运行
@@ -513,7 +517,7 @@ RejectedExecutionHandler handler
 
 **自定义示例：**
 
-```
+```java
 ExecutorService threadPool = new ThreadPoolExecutor(
         2,
         5,
@@ -527,3 +531,91 @@ ExecutorService threadPool = new ThreadPoolExecutor(
 
 
 
+
+
+
+
+
+
+## 分支合并框架
+
+### ForkJoin
+
+```java
+class MyTask extends RecursiveTask<Integer> {
+
+    private static final Integer ADJUST_VALUE = 10;
+
+    private int begin;
+    private int end;
+    private int result;
+
+    public MyTask(int begin, int end) {
+        this.begin = begin;
+        this.end = end;
+    }
+
+    @Override
+    protected Integer compute() {
+        if ((end - begin) <= ADJUST_VALUE) {
+            for (int i = begin; i <= end; i++) {
+                result = result + i;
+            }
+        } else {
+            int middle = (end + begin) / 2;
+            MyTask task01 = new MyTask(begin, middle);
+            MyTask task02 = new MyTask(middle + 1, end);
+            task01.fork();
+            task02.fork();
+            result = task01.join() + task02.join();
+        }
+        return result;
+    }
+}
+
+/**
+ * 分支合并框架
+ */
+public class ForkJoinDemo {
+    public static void main(String[] args) throws ExecutionException, InterruptedException {
+        MyTask myTask =new MyTask(0,100);
+        ForkJoinPool threadPool =new ForkJoinPool();
+        ForkJoinTask<Integer> forkJoinTask = threadPool.submit(myTask);
+        System.out.println(forkJoinTask.get());
+        threadPool.shutdown();
+    }
+}
+```
+
+
+
+
+
+## 异步回调
+
+### CompletableFuture
+
+```java
+public static void main(String[] args) throws ExecutionException, InterruptedException {
+
+        // 没有返回值
+        CompletableFuture<Void> comletableFuture = CompletableFuture.runAsync(() -> {
+            System.out.println(Thread.currentThread().getName() + "没有返回，update mysql ok");
+        });
+        comletableFuture.get();
+
+        // 有返回值
+        CompletableFuture<Integer> comletableFuture2 = CompletableFuture.supplyAsync(() -> {
+            System.out.println(Thread.currentThread().getName() + "有返回，update mysql ok");
+            int age = 10 / 0;
+            return 1024;
+        });
+        System.out.println(comletableFuture2.whenComplete((t, u) -> {
+            System.out.println("**t:" + t);
+            System.out.println("**u:" + u);
+        }).exceptionally(f -> {
+            System.out.println("****exception:" + f.getMessage());
+            return 4444;
+        }).get());
+    }
+```
