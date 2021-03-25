@@ -497,3 +497,188 @@ public class LogUtils {
 
 
 
+# Bean
+
+### Spring创建bean的三种方式
+
+#### 1.调用构造器创建Bean
+
+调用构造方法创建Bean是**最常用**的一种情况，Spring容器通过**new关键字**调用构造器来创建Bean实例，通过class属性指定Bean实例的实现类。调用构造方法创建Bean实例，我们需要为该Bean类提供无参数的构造器。
+
+```xml
+<bean id="person" class="com.mao.gouzao.Person">
+	  <!-- 通过调用setName方法，将VipMao作为参数传入 -->
+	  <property name="name" value="VipMao"></property>
+</bean>
+
+```
+
+另外我们定义了一个name属性，并提供了setter方法，**Spring容器通过setter方法为name属性注入参数。**
+
+
+
+测试
+
+```java
+ public static void main(String[]args)  
+    {  
+        //创建Spring容器  
+        ApplicationContext ctx=new ClassPathXmlApplicationContext("beans.xml");  
+        //通过getBean()方法获取Bean实例  
+        Person person=(Person) ctx.getBean("person");  
+        person.input();  
+    }  
+```
+
+
+
+
+
+#### 2.通过静态工厂方法创建Bean
+
+顾名思义，咱们把创建Bean的任务交给了静态工厂，而不是构造函数，这个静态工厂就是一个Java类，那么使用静态工厂创建Bean咱们又需要添加哪些属性呢？我们同样需要在<bean/>元素内添加class属性，上面也说了，静态工厂是一个Java类，那么该**class属性指定的就是该工厂的实现类**，而不再是Bean的实现类，告诉Spring这个Bean应该由哪个静态工厂创建，另外我们还需要添加**factory-method属性来指定由工厂的哪个方法来创建Bean实例**，因此使用静态工厂方法创建Bean实例需要为<bean/>元素指定如下属性：
+
+**class**：指定静态工厂的实现类，告诉Spring该Bean实例应该由哪个静态工厂创建（指定工厂地址）
+
+**factory-method:**指定由静态工厂的哪个方法创建该Bean实例（指定由工厂的哪个车间创建Bean）
+
+如果静态工厂方法需要参数，则使用**<constructor-arg.../>**元素传入
+
+下面是一个简单的通过静态工厂方法创建Bean
+
+```xml
+ <bean id="chinese" class="com.staticFactory.PersonFactory" factory-method="getPerson">  
+      <constructor-arg value="chinese"/>  
+      <!-- 调用setMsg()方法为msg属性注入参数值 -->  
+      <property name="msg" value="我是中国人"/>  
+ </bean>     
+```
+
+class: 指向静态工厂类的全类名 
+
+factory-method: 指向静态工厂中返回bean 实例的方法
+
+constructor-arg: 可以传入参数选择返回的bean 实例
+
+property：调用实例的set方法)方法为属性注入参数值
+
+
+
+Person接口
+
+```java
+package com.mao.staticFactory;  
+  
+public interface Person   
+{  
+    public void say();  
+}  
+```
+
+
+
+Chinese Bean实现类Chinese.java
+
+```java
+package com.mao.staticFactory;  
+  
+public class Chinese implements Person  
+{  
+    private String msg;  
+    //提供setter方法  
+    public void setMsg(String msg)   
+    {  
+        this.msg = msg;  
+    }  
+    @Override  
+    public void say()   
+    {  
+        // TODO Auto-generated method stub  
+        System.out.println(msg+"，打倒一切美帝国主义");  
+    }  
+  
+}  
+```
+
+
+
+静态工厂
+
+```java
+package com.mao.staticFactory;  
+  
+public class PersonFactory {  
+    public static Person getPerson(String arg)  
+    {  
+    if(arg.equalsIgnoreCase("chinese"))  
+    {  
+        return new Chinese();  
+    }     
+    else  
+    {  
+        return new American();  
+    }  
+  }  
+} 
+```
+
+
+
+测试
+
+```java
+public static void main(String []args)  
+    {  
+        //创建容器  
+        ApplicationContext ctx=new ClassPathXmlApplicationContext("beans.xml");  
+        //获取相应实体  
+        Chinese c=(Chinese) ctx.getBean("chinese" , Person.class);  
+        c.say();  
+        American a=(American) ctx.getBean("american" , Person.class);  
+        a.say();  
+    }  
+```
+
+
+
+
+
+#### 3.通过实例工厂方法创建Bean
+
+静态工厂通过class指定静态工厂实现类然后通过相应的方法创建即可，调用实例工厂则需要先创建该工厂的Bean实例，然后引用该实例工厂Bean的id创建其他Bean，在实例工厂中通过factory-bean指定工厂Bean的实例，在调用实例化工厂方法中，不用在<bean/>中指定class属性，因为这时，咱们不用直接实例化该Bean，而是通过调用实例化工厂的方法，创建Bean实例，调用实例化工厂需要为<bean/>指定一下两个属性
+
+factory-bean ：该属性指定工厂Bean的id
+
+factory-method：该属性指定实例工厂的工厂方法。
+
+下面是我们将上面调用静态方法的例子稍微改一下
+
+```xml
+ <!-- 配置工厂Bean，class指定该工厂的实现类，该Bean负责产生其他Bean实例 --> 
+<bean id="personFactory" class="com.mao.instanceFactory.PersonFactory"/>  
+
+<!-- 由实例工厂Bean的getPerson()方法，创建Chinese Bean， -->  
+<bean id="ch" factory-bean="personFactory" factory-method="getPerson">  
+   <!-- 为该方法传入参数为chinese -->  
+  <constructor-arg value="chinese"/>  
+</bean>  
+ <!-- 由实例工厂Bean的getPerson()方法，创建American Bean， -->  
+<bean id="usa" factory-bean="personFactory" factory-method="getPerson">  
+   <constructor-arg value="american"></constructor-arg>  
+</bean>  
+```
+
+
+
+#### 调用实例工厂创建Bean和调用静态工厂的区别
+
+   调用实例工厂将工厂单独拿了出来(先实例化工厂)创建一个工厂Bean，通过工厂<bean>的class属性指定工厂的实现类，然后再需要创建其他Bean时，只需要在该<bean/>元素添加factory-bean、factory-method指定该Bean是有哪个实例工厂的哪个方法创建就可以了，放在现实生活中就是：我们先找一个地方创建一个工厂，id指定工厂注册名字（xxx有限公司），class指定公司所在地，工厂里面有车间（创造其他Bean的方法），那好有了工厂我们再需要创建其他Bean时，只需要指定这个Bean是由，哪个工厂的哪个车间创建的即可，也就是 只需要在该<bean/>元素添加factory-bean、factory-method属性即可
+
+
+
+### Bean的生命周期
+
+
+
+
+
